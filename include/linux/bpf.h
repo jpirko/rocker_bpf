@@ -105,6 +105,9 @@ struct bpf_verifier_ops {
 	/* return eBPF function prototype for verification */
 	const struct bpf_func_proto *(*get_func_proto)(enum bpf_func_id func_id);
 
+	/* return eBPF function id */
+	enum bpf_func_id (*get_func_id)(__s32 imm_func);
+
 	/* return true if 'size' wide access at offset 'off' within bpf_context
 	 * with 'type' (read or write) is allowed
 	 */

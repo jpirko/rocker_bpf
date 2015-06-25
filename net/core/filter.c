@@ -1624,6 +1624,19 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 	}
 }
 
+static enum bpf_func_id sk_filter_func_id(__s32 imm_func)
+{
+	const struct bpf_func_proto *fn;
+	int i;
+
+	for (i = 0; i < __BPF_FUNC_MAX_ID; i++) {
+		fn = sk_filter_func_proto(i);
+		if (fn && fn->func == imm_func + __bpf_call_base)
+			return i;
+	}
+	BUG();
+}
+
 static const struct bpf_func_proto *
 tc_cls_act_func_proto(enum bpf_func_id func_id)
 {
@@ -1651,6 +1664,19 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 	default:
 		return sk_filter_func_proto(func_id);
 	}
+}
+
+static enum bpf_func_id tc_cls_act_func_id(__s32 imm_func)
+{
+	const struct bpf_func_proto *fn;
+	int i;
+
+	for (i = 0; i < __BPF_FUNC_MAX_ID; i++) {
+		fn = tc_cls_act_func_proto(i);
+		if (fn && fn->func == imm_func + __bpf_call_base)
+			return i;
+	}
+	BUG();
 }
 
 static bool __is_valid_access(int off, int size, enum bpf_access_type type)
@@ -1840,12 +1866,14 @@ static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 
 static const struct bpf_verifier_ops sk_filter_ops = {
 	.get_func_proto = sk_filter_func_proto,
+	.get_func_id = sk_filter_func_id,
 	.is_valid_access = sk_filter_is_valid_access,
 	.convert_ctx_access = bpf_net_convert_ctx_access,
 };
 
 static const struct bpf_verifier_ops tc_cls_act_ops = {
 	.get_func_proto = tc_cls_act_func_proto,
+	.get_func_id = tc_cls_act_func_id,
 	.is_valid_access = tc_cls_act_is_valid_access,
 	.convert_ctx_access = bpf_net_convert_ctx_access,
 };
