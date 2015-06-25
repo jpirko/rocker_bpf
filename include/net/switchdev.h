@@ -62,6 +62,7 @@ enum switchdev_obj_id {
 	SWITCHDEV_OBJ_ID_PORT_VLAN,
 	SWITCHDEV_OBJ_ID_IPV4_FIB,
 	SWITCHDEV_OBJ_ID_PORT_FDB,
+	SWITCHDEV_OBJ_ID_PORT_BPF_PROG,
 };
 
 struct switchdev_obj {
@@ -104,6 +105,16 @@ struct switchdev_obj_port_fdb {
 
 #define SWITCHDEV_OBJ_PORT_FDB(obj) \
 	container_of(obj, struct switchdev_obj_port_fdb, obj)
+
+/* SWITCHDEV_OBJ_ID_PORT_BPF_PROG */
+struct switchdev_obj_port_bpf_prog {
+	struct switchdev_obj obj;
+	u32 len;
+	const struct bpf_insn *insnsi;
+};
+
+#define SWITCHDEV_OBJ_PORT_BPF_PROG(obj) \
+	container_of(obj, struct switchdev_obj_port_bpf_prog, obj)
 
 void switchdev_trans_item_enqueue(struct switchdev_trans *trans,
 				  void *data, void (*destructor)(void const *),
