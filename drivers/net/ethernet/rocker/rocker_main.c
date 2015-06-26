@@ -5259,6 +5259,86 @@ static void rocker_port_dev_addr_init(struct rocker_port *rocker_port)
 	}
 }
 
+static int rocker_port_world_set(struct rocker_port *rocker_port, char *mode)
+{
+	if (!strcmp(mode, "ofdpa"))
+		return 0;
+	return -EOPNOTSUPP;
+}
+
+static const char *rocker_port_world_get(struct rocker_port *rocker_port)
+{
+	return "ofdpa";
+}
+
+static const struct nla_policy rocker_policy[IFLA_ROCKER_MAX + 1] = {
+	[IFLA_ROCKER_MODE] = { .type = NLA_STRING,
+			       .len = ROCKER_MODE_MAX - 1 },
+};
+
+static int rocker_validate(struct nlattr *tb[], struct nlattr *data[])
+{
+	if (tb[IFLA_ROCKER_MODE]) {
+		char mode[ROCKER_MODE_MAX];
+
+		nla_strlcpy(mode, tb[IFLA_ROCKER_MODE], ROCKER_MODE_MAX);
+		if (strcmp(mode, "ofdpa"))
+			return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int rocker_changelink(struct net_device *dev,
+			     struct nlattr *tb[], struct nlattr *data[])
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+	int err;
+
+	if (!data)
+		return 0;
+
+	if (data[IFLA_ROCKER_MODE]) {
+		char mode[ROCKER_MODE_MAX];
+
+		nla_strlcpy(mode, tb[IFLA_ROCKER_MODE], ROCKER_MODE_MAX);
+		err = rocker_port_world_set(rocker_port, mode);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static size_t rocker_get_size(const struct net_device *dev)
+{
+	return nla_total_size(sizeof(u8)) +	/* IFLA_ROCKER_MODE */
+	       0;
+}
+
+static int rocker_fill_info(struct sk_buff *skb,
+			    const struct net_device *dev)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+	const char *mode = rocker_port_world_get(rocker_port);
+
+	if (nla_put_string(skb, IFLA_ROCKER_MODE, mode))
+		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static struct rtnl_link_ops rocker_link_ops __read_mostly = {
+	.kind			= "rocker",
+	.maxtype		= IFLA_ROCKER_MAX,
+	.policy			= rocker_policy,
+	.validate		= rocker_validate,
+	.changelink		= rocker_changelink,
+	.get_size		= rocker_get_size,
+	.fill_info		= rocker_fill_info,
+};
+
 static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 {
 	const struct pci_dev *pdev = rocker->pdev;
@@ -5281,6 +5361,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	rocker_port_dev_addr_init(rocker_port);
 	dev->netdev_ops = &rocker_port_netdev_ops;
 	dev->ethtool_ops = &rocker_port_ethtool_ops;
+	dev->rtnl_link_ops = &rocker_link_ops;
 	dev->switchdev_ops = &rocker_port_switchdev_ops;
 	netif_napi_add(dev, &rocker_port->napi_tx, rocker_port_poll_tx,
 		       NAPI_POLL_WEIGHT);

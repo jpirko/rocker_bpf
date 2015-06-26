@@ -416,6 +416,17 @@ enum {
 };
 #define IFLA_GENEVE_MAX	(__IFLA_GENEVE_MAX - 1)
 
+/* Rocker section */
+enum {
+	IFLA_ROCKER_UNSPEC,
+	IFLA_ROCKER_MODE,
+	__IFLA_ROCKER_MAX,
+};
+
+#define IFLA_ROCKER_MAX	(__IFLA_ROCKER_MAX - 1)
+
+#define ROCKER_MODE_MAX 16
+
 /* Bonding section */
 
 enum {
