@@ -1,7 +1,7 @@
 /*
- * drivers/net/ethernet/rocker/rocker.h - Rocker switch device driver
- * Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
- * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
+ * drivers/net/ethernet/rocker/rocker_hw.h - Rocker switch device driver
+ * Copyright (c) 2014-2015 Jiri Pirko <jiri@resnulli.us>
+ * Copyright (c) 2014-2015 Scott Feldman <sfeldma@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -9,8 +9,8 @@
  * (at your option) any later version.
  */
 
-#ifndef _ROCKER_H
-#define _ROCKER_H
+#ifndef _ROCKER_HW_H
+#define _ROCKER_HW_H
 
 #include <linux/types.h>
 
