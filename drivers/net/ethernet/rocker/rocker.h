@@ -12,7 +12,11 @@
 #ifndef _ROCKER_H
 #define _ROCKER_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/netdevice.h>
+#include <net/neighbour.h>
+#include <net/switchdev.h>
 
 #include "rocker_hw.h"
 
@@ -22,6 +26,58 @@ struct rocker_desc_info {
 	size_t tlv_size;
 	struct rocker_desc *desc;
 	dma_addr_t mapaddr;
+};
+
+struct rocker;
+struct rocker_port;
+
+struct rocker_world_ops {
+	const char *kind;
+	size_t priv_size;
+	size_t port_priv_size;
+	u8 mode;
+	int (*init)(struct rocker *rocker, void *priv);
+	void (*fini)(void *priv);
+	int (*port_init)(struct rocker_port *rocker_port, void *priv,
+			 void *port_priv);
+	void (*port_fini)(void *port_priv);
+	int (*port_open)(void *port_priv);
+	void (*port_stop)(void *port_priv);
+	int (*port_attr_stp_state_set)(void *port_priv, u8 state,
+				       struct switchdev_trans *trans);
+	int (*port_attr_bridge_flags_set)(void *port_priv,
+					  unsigned long brport_flags,
+					  struct switchdev_trans *trans);
+	int (*port_attr_bridge_flags_get)(void *port_priv,
+					  unsigned long *p_brport_flags);
+	int (*port_obj_vlan_add)(void *port_priv,
+				 const struct switchdev_obj_port_vlan *vlan,
+				 struct switchdev_trans *trans);
+	int (*port_obj_vlan_del)(void *port_priv,
+				 const struct switchdev_obj_port_vlan *vlan);
+	int (*port_obj_vlan_dump)(void *port_priv,
+				  struct switchdev_obj_port_vlan *vlan,
+				  switchdev_obj_dump_cb_t *cb);
+	int (*port_obj_fib4_add)(void *port_priv,
+				 const struct switchdev_obj_ipv4_fib *fib4,
+				 struct switchdev_trans *trans);
+	int (*port_obj_fib4_del)(void *port_priv,
+				 const struct switchdev_obj_ipv4_fib *fib4);
+	int (*port_obj_fdb_add)(void *port_priv,
+				const struct switchdev_obj_port_fdb *fdb,
+				struct switchdev_trans *trans);
+	int (*port_obj_fdb_del)(void *port_priv,
+				const struct switchdev_obj_port_fdb *fdb);
+	int (*port_obj_fdb_dump)(void *port_priv,
+				 struct switchdev_obj_port_fdb *fdb,
+				 switchdev_obj_dump_cb_t *cb);
+	int (*port_master_linked)(void *port_priv, struct net_device *master);
+	int (*port_master_unlinked)(void *port_priv, struct net_device *master);
+	int (*port_neigh_update)(void *port_priv, struct neighbour *n);
+	int (*port_neigh_destroy)(void *port_priv, struct neighbour *n);
+	int (*port_ev_mac_vlan_seen)(void *port_priv,
+				     const unsigned char *addr,
+				     __be16 vlan_id);
 };
 
 #endif
