@@ -1,5 +1,5 @@
 /*
- * drivers/net/ethernet/rocker/rocker.c - Rocker switch device driver
+ * drivers/net/ethernet/rocker/rocker_main.c - Rocker switch device driver
  * Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
  *
