@@ -80,4 +80,6 @@ struct rocker_world_ops {
 				     __be16 vlan_id);
 };
 
+extern struct rocker_world_ops rocker_ofdpa_ops;
+
 #endif
