@@ -2175,6 +2175,7 @@ static struct rocker_world_ops *rocker_world_ops[] = {
 };
 
 #define ROCKER_WORLD_OPS_LEN ARRAY_SIZE(rocker_world_ops)
+#define ROCKER_DEFAULT_WORLD_OPS rocker_world_ops[0]
 
 static const struct rocker_world_ops *__rocker_world_ops_find(const char *kind)
 {
@@ -5241,6 +5242,7 @@ static void rocker_remove_ports(const struct rocker *rocker)
 			continue;
 		rocker_port_ig_tbl(rocker_port, NULL, ROCKER_OP_FLAG_REMOVE);
 		unregister_netdev(rocker_port->dev);
+		__rocker_port_change_world(rocker_port, NULL);
 		free_netdev(rocker_port->dev);
 	}
 	kfree(rocker->ports);
@@ -5372,6 +5374,12 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 
 	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_SG;
 
+	err = __rocker_port_change_world(rocker_port, ROCKER_DEFAULT_WORLD_OPS);
+	if (err) {
+		dev_err(&pdev->dev, "failed to set default world\n");
+		goto err_port_change_world;
+	}
+
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(&pdev->dev, "register_netdev failed\n");
@@ -5406,6 +5414,8 @@ err_port_ig_tbl:
 	rocker->ports[port_number] = NULL;
 	unregister_netdev(dev);
 err_register_netdev:
+	__rocker_port_change_world(rocker_port, NULL);
+err_port_change_world:
 	free_netdev(dev);
 	return err;
 }
