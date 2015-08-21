@@ -29,7 +29,30 @@ struct rocker_desc_info {
 };
 
 struct rocker;
+
+unsigned int rocker_port_count_get(struct rocker *rocker);
+struct rocker_port *rocker_port_get(struct rocker *rocker, int port_index);
+
 struct rocker_port;
+
+struct net_device *rocker_port_netdev_get(struct rocker_port *rocker_port);
+void *rocker_port_world_priv_get(struct rocker_port *rocker_port);
+u32 rocker_port_pport_get(struct rocker_port *rocker_port);
+
+typedef int (*rocker_cmd_prep_cb_t)(const struct rocker_port *rocker_port,
+				    struct rocker_desc_info *desc_info,
+				    void *priv);
+
+typedef int (*rocker_cmd_proc_cb_t)(const struct rocker_port *rocker_port,
+				    const struct rocker_desc_info *desc_info,
+				    void *priv);
+
+int rocker_cmd_exec(struct rocker_port *rocker_port, bool nowait,
+		    rocker_cmd_prep_cb_t prepare, void *prepare_priv,
+		    rocker_cmd_proc_cb_t process, void *process_priv);
+
+int rocker_port_set_learning(struct rocker_port *rocker_port,
+			     bool learning);
 
 struct rocker_world_ops {
 	const char *kind;
