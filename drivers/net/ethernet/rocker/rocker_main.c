@@ -1411,8 +1411,7 @@ typedef int (*rocker_cmd_proc_cb_t)(const struct rocker_port *rocker_port,
 				    const struct rocker_desc_info *desc_info,
 				    void *priv);
 
-static int rocker_cmd_exec(struct rocker_port *rocker_port,
-			   struct switchdev_trans *trans, int flags,
+static int rocker_cmd_exec(struct rocker_port *rocker_port, int flags,
 			   rocker_cmd_prep_cb_t prepare, void *prepare_priv,
 			   rocker_cmd_proc_cb_t process, void *process_priv)
 {
@@ -1441,17 +1440,15 @@ static int rocker_cmd_exec(struct rocker_port *rocker_port,
 		return err;
 	}
 
-	if (!switchdev_trans_ph_prepare(trans))
-		rocker_desc_head_set(rocker, &rocker->cmd_ring, desc_info);
+	rocker_desc_head_set(rocker, &rocker->cmd_ring, desc_info);
 
 	spin_unlock_irqrestore(&rocker->cmd_ring_lock, lock_flags);
 
 	if (nowait)
 		return 0;
 
-	if (!switchdev_trans_ph_prepare(trans))
-		if (!rocker_wait_event_timeout(wait, HZ / 10))
-			return -EIO;
+	if (!rocker_wait_event_timeout(wait, HZ / 10))
+		return -EIO;
 
 	err = rocker_desc_err(desc_info);
 	if (err)
@@ -1724,7 +1721,7 @@ rocker_cmd_set_port_settings_mode_prep(const struct rocker_port *rocker_port,
 static int rocker_cmd_get_port_settings_ethtool(struct rocker_port *rocker_port,
 						struct ethtool_cmd *ecmd)
 {
-	return rocker_cmd_exec(rocker_port, NULL, 0,
+	return rocker_cmd_exec(rocker_port, 0,
 			       rocker_cmd_get_port_settings_prep, NULL,
 			       rocker_cmd_get_port_settings_ethtool_proc,
 			       ecmd);
@@ -1733,7 +1730,7 @@ static int rocker_cmd_get_port_settings_ethtool(struct rocker_port *rocker_port,
 static int rocker_cmd_get_port_settings_macaddr(struct rocker_port *rocker_port,
 						unsigned char *macaddr)
 {
-	return rocker_cmd_exec(rocker_port, NULL, 0,
+	return rocker_cmd_exec(rocker_port, 0,
 			       rocker_cmd_get_port_settings_prep, NULL,
 			       rocker_cmd_get_port_settings_macaddr_proc,
 			       macaddr);
@@ -1742,7 +1739,7 @@ static int rocker_cmd_get_port_settings_macaddr(struct rocker_port *rocker_port,
 static int rocker_cmd_set_port_settings_ethtool(struct rocker_port *rocker_port,
 						struct ethtool_cmd *ecmd)
 {
-	return rocker_cmd_exec(rocker_port, NULL, 0,
+	return rocker_cmd_exec(rocker_port, 0,
 			       rocker_cmd_set_port_settings_ethtool_prep,
 			       ecmd, NULL, NULL);
 }
@@ -1750,7 +1747,7 @@ static int rocker_cmd_set_port_settings_ethtool(struct rocker_port *rocker_port,
 static int rocker_cmd_set_port_settings_macaddr(struct rocker_port *rocker_port,
 						unsigned char *macaddr)
 {
-	return rocker_cmd_exec(rocker_port, NULL, 0,
+	return rocker_cmd_exec(rocker_port, 0,
 			       rocker_cmd_set_port_settings_macaddr_prep,
 			       macaddr, NULL, NULL);
 }
@@ -1758,16 +1755,15 @@ static int rocker_cmd_set_port_settings_macaddr(struct rocker_port *rocker_port,
 static int rocker_cmd_set_port_settings_mtu(struct rocker_port *rocker_port,
 					    int mtu)
 {
-	return rocker_cmd_exec(rocker_port, NULL, 0,
+	return rocker_cmd_exec(rocker_port, 0,
 			       rocker_cmd_set_port_settings_mtu_prep,
 			       &mtu, NULL, NULL);
 }
 
 static int rocker_port_set_learning(struct rocker_port *rocker_port,
-				    struct switchdev_trans *trans,
 				    bool learning)
 {
-	return rocker_cmd_exec(rocker_port, trans, 0,
+	return rocker_cmd_exec(rocker_port, 0,
 			       rocker_cmd_set_port_learning_prep,
 			       &learning, NULL, NULL);
 }
@@ -1775,7 +1771,7 @@ static int rocker_port_set_learning(struct rocker_port *rocker_port,
 static int rocker_cmd_set_port_settings_mode(struct rocker_port *rocker_port,
 					     u8 mode)
 {
-	return rocker_cmd_exec(rocker_port, NULL, 0,
+	return rocker_cmd_exec(rocker_port, 0,
 			       rocker_cmd_set_port_settings_mode_prep,
 			       &mode, NULL, NULL);
 }
@@ -2734,8 +2730,11 @@ static int rocker_flow_tbl_add(struct rocker_port *rocker_port,
 
 	spin_unlock_irqrestore(&rocker->flow_tbl_lock, lock_flags);
 
-	return rocker_cmd_exec(rocker_port, trans, flags,
-			       rocker_cmd_flow_tbl_add, found, NULL, NULL);
+	if (!switchdev_trans_ph_prepare(trans))
+		return rocker_cmd_exec(rocker_port, flags,
+				       rocker_cmd_flow_tbl_add,
+				       found, NULL, NULL);
+	return 0;
 }
 
 static int rocker_flow_tbl_del(struct rocker_port *rocker_port,
@@ -2765,9 +2764,10 @@ static int rocker_flow_tbl_del(struct rocker_port *rocker_port,
 	rocker_kfree(trans, match);
 
 	if (found) {
-		err = rocker_cmd_exec(rocker_port, trans, flags,
-				      rocker_cmd_flow_tbl_del,
-				      found, NULL, NULL);
+		if (!switchdev_trans_ph_prepare(trans))
+			err = rocker_cmd_exec(rocker_port, flags,
+					      rocker_cmd_flow_tbl_del,
+					      found, NULL, NULL);
 		rocker_kfree(trans, found);
 	}
 
@@ -3055,8 +3055,11 @@ static int rocker_group_tbl_add(struct rocker_port *rocker_port,
 
 	spin_unlock_irqrestore(&rocker->group_tbl_lock, lock_flags);
 
-	return rocker_cmd_exec(rocker_port, trans, flags,
-			       rocker_cmd_group_tbl_add, found, NULL, NULL);
+	if (!switchdev_trans_ph_prepare(trans))
+		return rocker_cmd_exec(rocker_port, flags,
+				       rocker_cmd_group_tbl_add,
+				       found, NULL, NULL);
+	return 0;
 }
 
 static int rocker_group_tbl_del(struct rocker_port *rocker_port,
@@ -3083,9 +3086,10 @@ static int rocker_group_tbl_del(struct rocker_port *rocker_port,
 	rocker_group_tbl_entry_free(trans, match);
 
 	if (found) {
-		err = rocker_cmd_exec(rocker_port, trans, flags,
-				      rocker_cmd_group_tbl_del,
-				      found, NULL, NULL);
+		if (!switchdev_trans_ph_prepare(trans))
+			err = rocker_cmd_exec(rocker_port, flags,
+					      rocker_cmd_group_tbl_del,
+					      found, NULL, NULL);
 		rocker_group_tbl_entry_free(trans, found);
 	}
 
@@ -4564,7 +4568,7 @@ static int rocker_port_get_phys_port_name(struct net_device *dev,
 	struct port_name name = { .buf = buf, .len = len };
 	int err;
 
-	err = rocker_cmd_exec(rocker_port, NULL, 0,
+	err = rocker_cmd_exec(rocker_port, 0,
 			      rocker_cmd_get_port_settings_prep, NULL,
 			      rocker_cmd_get_port_settings_phys_name_proc,
 			      &name);
@@ -4652,8 +4656,9 @@ static int rocker_port_brport_flags_set(struct rocker_port *rocker_port,
 
 	orig_flags = rocker_port->brport_flags;
 	rocker_port->brport_flags = brport_flags;
-	if ((orig_flags ^ rocker_port->brport_flags) & BR_LEARNING)
-		err = rocker_port_set_learning(rocker_port, trans,
+	if ((orig_flags ^ rocker_port->brport_flags) & BR_LEARNING &&
+	    !switchdev_trans_ph_prepare(trans))
+		err = rocker_port_set_learning(rocker_port,
 					       !!(rocker_port->brport_flags & BR_LEARNING));
 
 	if (switchdev_trans_ph_prepare(trans))
@@ -5095,7 +5100,7 @@ rocker_cmd_get_port_stats_ethtool_proc(const struct rocker_port *rocker_port,
 static int rocker_cmd_get_port_stats_ethtool(struct rocker_port *rocker_port,
 					     void *priv)
 {
-	return rocker_cmd_exec(rocker_port, NULL, 0,
+	return rocker_cmd_exec(rocker_port, 0,
 			       rocker_cmd_get_port_stats_prep, NULL,
 			       rocker_cmd_get_port_stats_ethtool_proc,
 			       priv);
@@ -5436,7 +5441,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 
 	switchdev_port_fwd_mark_set(rocker_port->dev, NULL, false);
 
-	rocker_port_set_learning(rocker_port, NULL,
+	rocker_port_set_learning(rocker_port,
 				 !!(rocker_port->brport_flags & BR_LEARNING));
 
 	err = rocker_port_ig_tbl(rocker_port, NULL, 0);
